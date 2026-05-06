@@ -11,6 +11,7 @@ from .file import FileRoute
 from .knowledge_base import KnowledgeBaseRoute
 from .log import LogRoute
 from .open_api import OpenApiRoute
+from .open_api_voice import OpenApiVoiceRoute
 from .persona import PersonaRoute
 from .platform import PlatformRoute
 from .plugin import PluginRoute
@@ -36,6 +37,7 @@ __all__ = [
     "KnowledgeBaseRoute",
     "LogRoute",
     "OpenApiRoute",
+    "OpenApiVoiceRoute",
     "PersonaRoute",
     "PlatformRoute",
     "PluginRoute",

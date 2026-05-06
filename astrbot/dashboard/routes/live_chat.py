@@ -20,6 +20,7 @@ from astrbot.core.platform.sources.webchat.message_parts_helper import (
     webchat_message_parts_have_content,
 )
 from astrbot.core.platform.sources.webchat.webchat_queue_mgr import webchat_queue_mgr
+from astrbot.core.provider.provider import STTProvider
 from astrbot.core.utils.astrbot_path import get_astrbot_data_path, get_astrbot_temp_path
 from astrbot.core.utils.datetime_utils import to_utc_isoformat
 
@@ -731,6 +732,29 @@ class LiveChatRoute(Route):
             session.should_interrupt = True
             logger.info(f"[Live Chat] 用户打断: {session.username}")
 
+    def _get_live_stt_provider(self) -> STTProvider | None:
+        ctx = self.plugin_manager.context
+        provider_manager = ctx.provider_manager
+        provider = ctx.get_using_stt_provider()
+        if provider:
+            return provider
+
+        if not self.config["provider_stt_settings"].get("enable"):
+            return None
+
+        provider_id = self.config["provider_stt_settings"].get("provider_id")
+        if provider_id:
+            provider = provider_manager.inst_map.get(provider_id)
+            if isinstance(provider, STTProvider):
+                return provider
+
+        provider = provider_manager.curr_stt_provider_inst
+        if isinstance(provider, STTProvider):
+            return provider
+        if provider_manager.stt_provider_insts:
+            return provider_manager.stt_provider_insts[0]
+        return None
+
     async def _process_audio(
         self, session: LiveChatSession, audio_path: str, assemble_duration: float
     ) -> None:
@@ -746,8 +770,7 @@ class LiveChatRoute(Route):
             session.should_interrupt = False
 
             # 1. STT - 语音转文字
-            ctx = self.plugin_manager.context
-            stt_provider = ctx.provider_manager.stt_provider_insts[0]
+            stt_provider = self._get_live_stt_provider()
 
             if not stt_provider:
                 logger.error("[Live Chat] STT Provider 未配置")

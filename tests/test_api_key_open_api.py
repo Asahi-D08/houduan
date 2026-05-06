@@ -397,6 +397,23 @@ async def test_open_api_auth_validation_and_key_carriers(
 
 
 @pytest.mark.asyncio
+async def test_open_api_cors_preflight_does_not_require_api_key(app: Quart):
+    res = await app.test_client().options(
+        "/api/v1/chat/sessions?page=1&page_size=1&username=desktop-pet-user",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "x-api-key",
+        },
+    )
+
+    assert res.status_code == 204
+    assert res.headers["Access-Control-Allow-Origin"] == "*"
+    assert "GET" in res.headers["Access-Control-Allow-Methods"]
+    assert "X-API-Key" in res.headers["Access-Control-Allow-Headers"]
+
+
+@pytest.mark.asyncio
 async def test_open_chat_send_conversation_alias_and_blank_username(
     app: Quart,
     authenticated_header: dict,

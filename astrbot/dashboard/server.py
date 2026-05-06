@@ -135,6 +135,7 @@ class AstrBotDashboard:
         self.app.json = AstrBotJSONProvider(self.app)
         self.app.json.sort_keys = False
         self.app.before_request(self.auth_middleware)
+        self.app.after_request(self.cors_middleware)
         # token 用于验证请求
         logging.getLogger(self.app.name).removeHandler(default_handler)
         self.context = RouteContext(self.config, self.app)
@@ -162,6 +163,7 @@ class AstrBotDashboard:
             core_lifecycle,
             self.chat_route,
         )
+        self.open_api_voice_route = OpenApiVoiceRoute(self.context, core_lifecycle)
         self.chatui_project_route = ChatUIProjectRoute(self.context, db)
         self.tools_root = ToolsRoute(self.context, core_lifecycle)
         self.subagent_route = SubAgentRoute(self.context, core_lifecycle)
@@ -208,6 +210,10 @@ class AstrBotDashboard:
         if not request.path.startswith("/api"):
             return None
         if request.path.startswith("/api/v1"):
+            if request.method == "OPTIONS":
+                response = self.app.response_class(status=204)
+                return self._add_cors_headers(response)
+
             raw_key = self._extract_raw_api_key()
             if not raw_key:
                 r = jsonify(Response().error("Missing API key").__dict__)
@@ -284,6 +290,23 @@ class AstrBotDashboard:
             r.status_code = 401
             return r
 
+    async def cors_middleware(self, response):
+        if request.path.startswith("/api/v1"):
+            return self._add_cors_headers(response)
+        return response
+
+    @staticmethod
+    def _add_cors_headers(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = (
+            "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        )
+        response.headers["Access-Control-Allow-Headers"] = (
+            "Authorization, Content-Type, X-API-Key"
+        )
+        response.headers["Access-Control-Max-Age"] = "86400"
+        return response
+
     @staticmethod
     def _extract_dashboard_jwt() -> str | None:
         auth_header = request.headers.get("Authorization", "").strip()
@@ -320,6 +343,9 @@ class AstrBotDashboard:
             "/api/v1/chat/sessions": "chat",
             "/api/v1/configs": "config",
             "/api/v1/file": "file",
+            "/api/v1/voice/capabilities": "chat",
+            "/api/v1/voice/speech": "chat",
+            "/api/v1/voice/transcriptions": "chat",
             "/api/v1/im/message": "im",
             "/api/v1/im/bots": "im",
         }
