@@ -230,6 +230,43 @@ async def test_mimo_stt_get_text_handles_empty_choices(monkeypatch):
         await provider.get_text("/tmp/test.wav")
 
 
+@pytest.mark.asyncio
+async def test_mimo_stt_get_text_uses_reasoning_content_when_content_is_empty(
+    monkeypatch,
+):
+    provider = _make_stt_provider()
+
+    async def fake_prepare_audio_input(_audio_source: str):
+        return "ZmFrZQ==", []
+
+    class _Response:
+        status_code = 200
+        text = '{"choices":[{"message":{"content":"","reasoning_content":"一二三四五六"}}]}'
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "",
+                            "reasoning_content": "一二三四五六",
+                        }
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(
+        "astrbot.core.provider.sources.mimo_stt_api_source.prepare_audio_input",
+        fake_prepare_audio_input,
+    )
+    provider.client = SimpleNamespace(post=_fake_post(_Response()))
+
+    assert await provider.get_text("/tmp/test.wav") == "一二三四五六"
+
+
 def _fake_post(response):
     async def _post(*_args, **_kwargs):
         return response
